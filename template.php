@@ -3,6 +3,7 @@
 <html lang="zh-CN">
 	<head>
 		<?php require_once('header.php'); ?>
+		<?php $title="" ?>
 	</head>
 	<body>
 		<div class="container">
