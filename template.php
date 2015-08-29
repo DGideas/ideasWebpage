@@ -2,8 +2,8 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 	<head>
-		<?php require_once('header.php'); ?>
 		<?php $title="" ?>
+		<?php require_once('header.php'); ?>
 	</head>
 	<body>
 		<div class="container">
