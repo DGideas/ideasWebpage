@@ -1,68 +1,74 @@
 <?php
 	//Designed for PHP5
-	//Thanks for boxfish education's help
+	//Document:https://github.com/DGideas/DGStorage/wiki
 	class DGStorage
 	{	
-	
+		protected $DGSTORAGE=array();
 		
 		function __construct()
 		{
-			$GLOBALS["DGSTORAGE"]=array();
-			$GLOBALS["DGSTORAGE"]["VERSION"]='2.1'; // DataCollection Version
-			$GLOBALS["DGSTORAGE"]["CHARSET"]='utf8'; // Default Charset
-			$GLOBALS["DGSTORAGE"]["SINGLECOLLECTIONLIMIT"]=1024; // Determine every collection can put how many datas
-			$GLOBALS["DGSTORAGE"]["SEARCHRANGE"]=3; // Determine when find a avalible collection, how many collection can we find. None stands find all collection.
-			$GLOBALS["DGSTORAGE"]["SEARCHINDEXLIMIT"]=64; // Determine DGStorage can storage how many indexs for quick search.
-			$GLOBALS["DGSTORAGE"]["SEARCHCACHELIMIT"]=32; // Determine DGStorage can storage how many caches for quick responds.
-			$GLOBALS["DGSTORAGE"]["SAFETY"]=True; // Security settings, True not allowed access database out of the exec path.
+			$this->DGSTORAGE["VERSION"]='2.2';
+			$this->DGSTORAGE["CHARSET"]='utf8';
+			$this->DGSTORAGE["SINGLECOLLECTIONLIMIT"]=1024;
+			$this->DGSTORAGE["SEARCHRANGE"]=3;
+			$this->DGSTORAGE["SEARCHINDEXLIMIT"]=32;
+			$this->DGSTORAGE["SEARCHCACHELIMIT"]=32;
+			$this->DGSTORAGE["PROPCACHELIMIT"]=32;
+			$this->DGSTORAGE["SAFETY"]=True;
 			
-			$GLOBALS["DGSTORAGE"]["Name"]=NULL;
+			$this->DGSTORAGE["Name"]=NULL;
+			$this->DGSTORAGE["TimeStamp"]='';
 			
-			$GLOBALS["DGSTORAGE"]["CollectionCache"]=array();
-			$GLOBALS["DGSTORAGE"]["LastCollection"]=NULL;
-			$GLOBALS["DGSTORAGE"]["SearchCache"]=array();
+			$this->DGSTORAGE["CollectionCache"]=array();
+			$this->DGSTORAGE["LastCollection"]=NULL;
+			$this->DGSTORAGE["SearchCache"]=array();
 			
 			chdir(dirname(__FILE__));
-			$GLOBALS["DGSTORAGE"]["Name"]=dirname (__FILE__);
+			$this->DGSTORAGE["Name"]=dirname (__FILE__);
 			ini_set ("max_execution_time",3600);
 		}
 		
 		public function create($name)
 		{
-			$GLOBALS["DGSTORAGE"]["Name"]=(string)$name;
-			if($GLOBALS["DGSTORAGE"]["SAFETY"]==True)
+			$this->DGSTORAGE["Name"]=(string)$name;
+			if($this->DGSTORAGE["SAFETY"]==True)
 			{
-				$GLOBALS["DGSTORAGE"]["Name"]=urlencode($GLOBALS["DGSTORAGE"]["Name"]);
+				$this->DGSTORAGE["Name"]=urlencode($this->DGSTORAGE["Name"]);
 			}
-			if(is_dir($GLOBALS["DGSTORAGE"]["Name"])){
+			if(is_dir($this->DGSTORAGE["Name"])){
 				return False;
 			}
-			mkdir($GLOBALS["DGSTORAGE"]["Name"]);
-			$conf=fopen($GLOBALS["DGSTORAGE"]["Name"]."/conf.dgb","a");
+			mkdir($this->DGSTORAGE["Name"]);
+			chmod($this->DGSTORAGE["Name"]."/",0777);
+			$conf=fopen($this->DGSTORAGE["Name"]."/conf.dgb","a");
 				fwrite($conf,$this->uuid()."\n");
 				fwrite($conf,"Version:2.1");
 				fclose($conf);
-			mkdir($GLOBALS["DGSTORAGE"]["Name"]."/index");
-			$index=fopen($GLOBALS["DGSTORAGE"]["Name"]."/index/index.dgi","a");
+			mkdir($this->DGSTORAGE["Name"]."/index");
+			$index=fopen($this->DGSTORAGE["Name"]."/index/index.dgi","a");
 				fclose($index);
-			mkdir($GLOBALS["DGSTORAGE"]["Name"]."/cache");
-			mkdir($GLOBALS["DGSTORAGE"]["Name"]."/cache/search");
-			mkdir($GLOBALS["DGSTORAGE"]["Name"]."/cache/prop");
+			mkdir($this->DGSTORAGE["Name"]."/cache");
+			chmod($this->DGSTORAGE["Name"]."/cache",0777);
+			mkdir($this->DGSTORAGE["Name"]."/cache/search");
+			chmod($this->DGSTORAGE["Name"]."/cache/search",0777);
+			mkdir($this->DGSTORAGE["Name"]."/cache/prop");
+			chmod($this->DGSTORAGE["Name"]."/cache/prop",0777);
+			$this->uptmp();
 			return True;
 		}
 		
 		
 		public function select($name)
 		{
-			$GLOBALS["DGSTORAGE"]["Name"]=(string)$name;
-			if($GLOBALS["DGSTORAGE"]["SAFETY"]==True)
+			$this->DGSTORAGE["Name"]=(string)$name;
+			if($this->DGSTORAGE["SAFETY"]==True)
 			{
-				$GLOBALS["DGSTORAGE"]["Name"]=urlencode($GLOBALS["DGSTORAGE"]["Name"]);
+				$this->DGSTORAGE["Name"]=urlencode($this->DGSTORAGE["Name"]);
 			}
-			if(is_dir($GLOBALS["DGSTORAGE"]["Name"]))
+			if(is_dir($this->DGSTORAGE["Name"]))
 			{
 				$correctVersion=False;
-				$array=file($GLOBALS["DGSTORAGE"]["Name"]."/conf.dgb");
+				$array=file($this->DGSTORAGE["Name"]."/conf.dgb");
 				foreach($array as &$config)
 				{
 					if(strpos($config,"Version:2")!==False)
@@ -74,16 +80,16 @@
 				{
 					return False;
 				}
-				$array=file($GLOBALS["DGSTORAGE"]["Name"]."/index/index.dgi");
+				$array=file($this->DGSTORAGE["Name"]."/index/index.dgi");
 				foreach($array as &$line)
 				{
 					$line=str_replace("\n","",$line);
 					if($line!='')
 					{
-						array_push($GLOBALS["DGSTORAGE"]["CollectionCache"],(string)$line);
+						array_push($this->DGSTORAGE["CollectionCache"],(string)$line);
 					}
 				}
-				
+				$this->DGSTORAGE["TimeStamp"]=file_get_contents($this->DGSTORAGE["Name"].'/cache/time.dgb');
 			}
 			else
 			{
@@ -101,7 +107,7 @@
 			{
 				return False;
 			}
-			if($this->array_count($GLOBALS["DGSTORAGE"]["CollectionCache"])==0)
+			if($this->array_count($this->DGSTORAGE["CollectionCache"])==0)
 			{
 				if($this->createcoll(0))
 				{
@@ -114,9 +120,9 @@
 			}
 			else
 			{
-				if($GLOBALS["DGSTORAGE"]["LastCollection"]!='')
+				if($this->DGSTORAGE["LastCollection"]!='')
 				{
-					$collIndex=file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$GLOBALS["DGSTORAGE"]["LastCollection"].'/index/index.dgi');
+					$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$this->DGSTORAGE["LastCollection"].'/index/index.dgi');
 						$i=0;
 						foreach($collIndex as &$line)
 						{
@@ -125,9 +131,9 @@
 								$i++;
 							}
 						}
-						if($i<$GLOBALS["DGSTORAGE"]["SINGLECOLLECTIONLIMIT"])
+						if($i<$this->DGSTORAGE["SINGLECOLLECTIONLIMIT"])
 						{
-							$operationCollection=$GLOBALS["DGSTORAGE"]["LastCollection"];
+							$operationCollection=$this->DGSTORAGE["LastCollection"];
 						}
 						else
 						{
@@ -140,10 +146,10 @@
 					$operationCollection=$this->findavailablecoll(True);
 				}
 			}
-			$GLOBALS["DGSTORAGE"]["LastCollection"]=$operationCollection;
+			$this->DGSTORAGE["LastCollection"]=$operationCollection;
 			$uid='';
-			$collIndex=fopen($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$operationCollection.'/index/index.dgi','a');
-				$collIndexR=file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$operationCollection.'/index/index.dgi');
+			$collIndex=fopen($this->DGSTORAGE["Name"].'/'.(string)$operationCollection.'/index/index.dgi','a');
+				$collIndexR=file($this->DGSTORAGE["Name"].'/'.(string)$operationCollection.'/index/index.dgi');
 				$i=0;
 				foreach($collIndexR as &$line)
 				{
@@ -162,20 +168,23 @@
 					fwrite($collIndex,"\n".(string)$uid.','.(string)$key);
 				}
 				fclose($collIndex);
-			$storage=fopen($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$operationCollection.'/'.(string)$uid.'.dgs','a');
+			$storage=fopen($this->DGSTORAGE["Name"].'/'.(string)$operationCollection.'/'.(string)$uid.'.dgs','a');
 				fwrite($storage,(string)$content);
 				fclose($storage);
+				chmod($this->DGSTORAGE["Name"].'/'.(string)$operationCollection.'/'.(string)$uid.'.dgs',0777);
 			if($this->array_count($prop)!=0)
 			{
-				$storageProp=fopen($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$operationCollection.'/'.(string)$uid.'.dgp','a');
-					foreach($prop as &$propItem)
+				$storageProp=fopen($this->DGSTORAGE["Name"].'/'.(string)$operationCollection.'/'.(string)$uid.'.dgp','a');
+					foreach($prop as $prop=>&$propItem)
 					{
+						$prop=urlencode((string)$prop);
 						$propItem=urlencode((string)$propItem);
-						$prop[$propItem]=urlencode((string)$prop[$propItem]);
-						fwrite($storageProp,(string)$propItem.':'.(string)$prop[$propItem]."\n");
+						fwrite($storageProp,(string)$prop.':'.(string)$propItem."\n");
 					}
 					fclose($storageProp);
+					chmod($this->DGSTORAGE["Name"].'/'.(string)$operationCollection.'/'.(string)$uid.'.dgp',0777);
 			}
+			$this->uptmp();
 			return $uid;
 		}
 		
@@ -189,11 +198,268 @@
 			return $this->finditemviakey('$all',$limit,$skip);
 		}
 		
+		public function uid($uid)
+		{
+			return $this->finditemviauid($uid);
+		}
+		
+		public function search($keyword,$cache=False)
+		{
+			$res=array();
+			foreach($this->DGSTORAGE["CollectionCache"] as &$collection)
+			{
+				$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/index/index.dgi');
+					foreach($collIndex as &$line)
+					{
+						str_replace("\n","",$line);
+						if($line!='')
+						{
+							$split=explode(",",$line);
+							$storage=file_get_contents($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs');
+								if(strpos($storage,(string)$keyword)!==False)
+								{
+									array_push($res,$this->finditemviauid($split[0],(string)$collection));
+								}
+								fclose($storage);
+						}
+					}
+			}
+			return $res;
+		}
+		
+		public function pervious($uid)
+		{
+			$pervious='';
+			foreach($this->DGSTORAGE["CollectionCache"] as &$collection)
+			{
+				$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/index/index.dgi');
+					foreach($collIndex as &$line)
+					{
+						$line=str_replace("\n","",$line);
+						if($line!='')
+						{
+							$split=explode(",",$line);
+							if($split[0]==$uid)
+							{
+								if($pervious!='')
+								{
+									return $pervious;
+								}
+								else
+								{
+									$pop=$this->DGSTORAGE["CollectionCache"];
+									$pop=array_pop($pop);
+									$lastColl=file($this->DGSTORAGE["Name"].'/'.(string)$pop.'/index/index.dgi');
+										$lastUid='';
+										foreach($lastColl as &$line)
+										{
+											$line=str_replace("\n","",$line);
+											if(line!='')
+											{
+												$lastUid=$line;
+											}
+										}
+										$splitRes=explode(",",$line);
+										return $splitRes[0];
+								}
+							}
+							else
+							{
+								$pervious=$split[0];
+							}
+						}
+					}
+			}
+			return False;
+		}
+		
+		public function following($uid)
+		{
+			$follow='';
+			$find=False;
+			foreach($this->DGSTORAGE["CollectionCache"] as &$collection)
+			{
+				$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/index/index.dgi');
+					foreach($collIndex as &$line)
+					{
+						$line=str_replace("\n","",$line);
+						if(line!='')
+						{
+							$split=explode(",",$line);
+							if($split[0]==$uid)
+							{
+								$find=True;
+							}
+							else
+							{
+								if($find==True)
+								{
+									return $split[0];
+								}
+							}
+						}
+					}
+			}
+			$firstColl=file($this->DGSTORAGE["Name"].'/'.(string)($this->DGSTORAGE["CollectionCache"][0]).'/index/index.dgi');
+				foreach($firstColl as &$line)
+				{
+					if($line!='')
+					{
+						$split=explode(",",$line);
+						return $split[0];
+					}
+				}
+		}
+		
+		public function sort($propItem,$order="ASC",$limit=5,$skip=0)
+		{
+			$propItem=(string)$propItem;
+			$propItem=urlencode($propItem);
+			$sortArray=array();
+			$res=array();
+			if($skip<0)
+			{
+				$skip=0;
+			}
+			if($limit==0)
+			{
+				return $res;
+			}
+			elseif($limit<0 || $limit==NULL)
+			{
+				$limit=-1;
+			}
+			if(is_file($this->DGSTORAGE["Name"].'/cache/prop/'.$propItem.'_'.$order.'.dgb'))
+			{
+				$cacheTimeStamp=file_get_contents($this->DGSTORAGE["Name"].'/cache/prop/'.$propItem.'_'.$order.'.dgb');
+					if($cacheTimeStamp!=$this->DGSTORAGE["TimeStamp"])
+					{
+						unlink($this->DGSTORAGE["Name"].'/cache/prop/'.$propItem.'_'.$order.'.dgb');
+						unlink($this->DGSTORAGE["Name"].'/cache/prop/'.$propItem.'_'.$order.'.dgc');
+						return $this->sort($propItem,$order,$limit,$skip);
+					}
+				$cacheObject=file($this->DGSTORAGE["Name"].'/cache/prop/'.$propItem.'_'.$order.'.dgc');
+					foreach($cacheObject as &$line)
+					{
+						$line=str_replace("\n","",$line);
+						if($line!='')
+						{
+							$split=explode(",",$line);
+							array_push($res,array("uid"=>$split[0],"propValue"=>$split[1]));
+						}
+					}
+					if($limit==-1)
+					{
+						return array_slice($res,$skip);
+					}
+					else
+					{
+						return array_slice($res,$skip,$limit);
+					}
+			}
+			else
+			{
+				foreach($this->DGSTORAGE["CollectionCache"] as &$collection)
+				{
+					$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/index/index.dgi');
+						foreach($collIndex as &$line)
+						{
+							$line=str_replace("\n","",$line);
+							if($line!='')
+							{
+								$split=explode(",",$line);
+								$prop=$this->getprop($split[0],$collection);
+								if($prop[$propItem]===NULL)
+								{
+									continue;
+								}
+								else
+								{
+									if($order!="WORD")
+									{
+										$sortArray[$split[0]]=(float)$prop[$propItem];
+										
+									}
+									else
+									{
+										$sortArray[$split[0]]=(string)$prop[$propItem];
+									}
+								}
+							}
+						}
+				}
+				if($order=="WORD")
+				{
+					asort($sortArray);
+				}
+				elseif($order=="ASC")
+				{
+					asort($sortArray);
+				}
+				elseif($order=="DESC")
+				{
+					arsort($sortArray);
+				}
+				else
+				{
+					return False;
+				}
+				foreach($sortArray as $key=>&$element)
+				{
+					array_push($res,array("uid"=>$key,"propValue"=>$element));
+				}
+				if(is_file($this->DGSTORAGE["Name"].'/cache/prop/index.dgi'))
+				{
+					$cacheIndex=file($this->DGSTORAGE["Name"].'/cache/prop/index.dgi');
+						$count=0;
+						foreach($cacheIndex as &$line)
+						{
+							$line=str_replace("\n","",$line);
+							if($line!='')
+							{
+								$count++;
+							}
+						}
+						if($count>=$this->DGSTORAGE["PROPCACHELIMIT"])
+						{
+							if($limit==-1)
+							{
+								return array_slice($res,$skip);
+							}
+							else
+							{
+								return array_slice($res,$skip,$limit);
+							}
+						}
+				}
+				$cacheTimeStamp=fopen($this->DGSTORAGE["Name"].'/cache/prop/'.$propItem.'_'.$order.'.dgb','a');
+					fwrite($cacheTimeStamp,$this->DGSTORAGE["TimeStamp"]);
+					fclose($cacheTimeStamp);
+				$cacheObject=fopen($this->DGSTORAGE["Name"].'/cache/prop/'.$propItem.'_'.$order.'.dgc','a');
+					foreach($res as &$element)
+					{
+						fwrite($cacheObject,$element["uid"].','.$element["propValue"]."\n");
+					}
+					fclose($cacheObject);
+				$cacheIndex=fopen($this->DGSTORAGE["Name"].'/cache/prop/index.dgi','a');
+					fwrite($cacheIndex,$propItem.'_'.$order."\n");
+					fclose($cacheIndex);
+				if($limit==-1)
+				{
+					return array_slice($res,$skip);
+				}
+				else
+				{
+					return array_slice($res,$skip,$limit);
+				}
+			}
+		}
+		
 		public function put($uid,$content)
 		{
-			foreach($GLOBALS["DGSTORAGE"]["CollectionCache"] as &$collection)
+			foreach($this->DGSTORAGE["CollectionCache"] as &$collection)
 			{
-				$collIndex=file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/index/index.dgi');
+				$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/index/index.dgi');
 					$findStatus=False;
 					foreach($collIndex as &$line)
 					{
@@ -203,7 +469,7 @@
 							$split=explode(",",$line);
 							if($split[0]==$uid)
 							{
-								$storage=fopen($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgs','w');
+								$storage=fopen($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgs','w');
 									fwrite($storage,$content);
 									fclose($storage);
 								$findStatus=True;
@@ -220,71 +486,190 @@
 				}
 				else
 				{
-					return False;
+					continue;
 				}
 			}
-			return True;
+			if($findStatus==True)
+			{
+				$this->uptmp();
+				return True;
+			}
+			else
+			{
+				return False;
+			}
+		}
+		
+		public function setprop($uid,$propItem,$propValue)
+		{
+			$propItem=urlencode((string)$propItem);
+			$propValue=urlencode((string)$propValue);
+			foreach($this->DGSTORAGE["CollectionCache"] as &$collection)
+			{
+				$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/index/index.dgi');
+					foreach($collIndex as &$line)
+					{
+						$line=str_replace("\n","",$line);
+						if($line!='')
+						{
+							$split=explode(",",$line);
+							if($split[0]==$uid)
+							{
+								if(is_file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp'))
+								{
+									$propList=array();
+									$storageProp=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp');
+										foreach($storageProp as &$line)
+										{
+											$line=str_replace("\n","",$line);
+											if($line!='')
+											{
+												$split=explode(":",$line);
+												if($split[0]!=$propItem)
+												{
+													$propList[$split[0]]=$split[1];
+												}
+											}
+										}
+										$propList[$propItem]=$propValue;
+									$storageProp=fopen($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp','w');
+										foreach($propList as $key=>&$propElement)
+										{
+											fwrite($storageProp,$key.':'.$propElement."\n");
+										}
+										fclose($storageProp);
+									return True;
+								}
+								else
+								{
+									$storageProp=fopen($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp','a');
+										fwrite($storageProp,$key.':'.$propElement."\n");
+										fclose($storageProp);
+									return True;
+								}
+							}
+						}
+					}
+			}
+			return False;
+		}
+		
+		public function removeprop($uid,$propItem)
+		{
+			$propItem=urlencode((string)$propItem);
+			foreach($this->DGSTORAGE["CollectionCache"] as &$collection)
+			{
+				$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/index/index.dgi');
+					foreach($collIndex as &$line)
+					{
+						$line=str_replace("\n","",$line);
+						if($line!='')
+						{
+							$split=explode(",",$line);
+							if($split[0]==$uid)
+							{
+								if(is_file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp'))
+								{
+									$propList=array();
+									$storageProp=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp');
+										foreach($storageProp as &$line)
+										{
+											$line=str_replace("\n","",$line);
+											if($line!='')
+											{
+												$split=explode(":",$line);
+												if($split[0]!=$propItem)
+												{
+													$propList[$split[0]]=$split[1];
+												}
+											}
+										}
+									if($this->array_count($propList)>0)
+									{
+										$storageProp=fopen($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp','w');
+											foreach($propList as $key=>&$propElement)
+											{
+												fwrite($storageProp,$key.':'.$propElement."\n");
+											}
+											fclose($storageProp);
+										return True;
+									}
+									else
+									{
+										unlink($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp');
+										return True;
+									}
+								}
+								else
+								{
+									return False;
+								}
+							}
+						}
+					}
+			}
+			return False;
 		}
 		
 		public function remove($uid)
 		{
-			$index=file($GLOBALS["DGSTORAGE"]["Name"].'/index/index.dgi');
-				$findStatus=False;
-				foreach($index as &$line)
-				{
-					$line=str_replace("\n","",$line);
-					$itemList=array();
-					$collIndex=file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$line.'/index/index.dgi');
-						foreach($collIndex as &$row)
+			$findStatus=False;
+			foreach($this->DGSTORAGE["CollectionCache"] as &$line)
+			{
+				$line=str_replace("\n","",$line);
+				$itemList=array();
+				$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$line.'/index/index.dgi');
+					foreach($collIndex as &$row)
+					{
+						$row=str_replace("\n","",$row);
+						$split=explode(",",$row);
+						if($split[0]==$uid)
 						{
-							$row=str_replace("\n","",$row);
-							$split=explode(",",$row);
-							if($split[0]==$uid)
+							unlink($this->DGSTORAGE["Name"].'/'.(string)$line.'/'.(string)$uid.'.dgs');
+							if(is_file($this->DGSTORAGE["Name"].'/'.(string)$line.'/'.(string)$uid.'.dgp'))
 							{
-								unlink($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$line.'/'.(string)$uid.'.dgs');
-								if(is_file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$line.'/'.(string)$uid.'.dgp'))
-								{
-									unlink($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$line.'/'.(string)$uid.'.dgp');
-								}
-								$findStatus=True;
+								unlink($this->DGSTORAGE["Name"].'/'.(string)$line.'/'.(string)$uid.'.dgp');
 							}
-							else
-							{
-								array_push($itemList,$row);
-							}
+							$findStatus=True;
 						}
-						if($findStatus==True)
+						else
 						{
-							$collIndex=fopen($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$line.'/index/index.dgi','w');
-								$string='';
-								foreach($itemList as &$item)
-								{
-									$string=(string)$string.(string)$item."\n";
-								}
-								fwrite($collIndex,$string);
-								fclose($collIndex);
-							$i=0;
-							$collIndex=file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$line.'/index/index.dgi');
-								foreach($collIndex as &$line)
-								{
-									$line=str_replace("\n","",$line);
-									if($line!='')
-									{
-										$i++;
-									}
-								}
-							if($i==0)
-							{
-								$this->removecoll((string)$line);
-							}
-							break;
+							array_push($itemList,$row);
 						}
-						fclose($collIndex);
-				}
-				if($findStatus==False)
-				{
-					return False;
-				}
+					}
+					if($findStatus==True)
+					{
+						$collIndex=fopen($this->DGSTORAGE["Name"].'/'.(string)$line.'/index/index.dgi','w');
+							$string='';
+							foreach($itemList as &$item)
+							{
+								$string=(string)$string.(string)$item."\n";
+							}
+							fwrite($collIndex,$string);
+							fclose($collIndex);
+						$i=0;
+						$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$line.'/index/index.dgi');
+							foreach($collIndex as &$line)
+							{
+								$line=str_replace("\n","",$line);
+								if($line!='')
+								{
+									$i++;
+								}
+							}
+						if($i==0)
+						{
+							$this->removecoll((string)$line);
+						}
+						break;
+					}
+					fclose($collIndex);
+			}
+			if($findStatus==False)
+			{
+				return False;
+			}
+			$this->uptmp();
 			return True;
 		}
 		
@@ -318,14 +703,16 @@
 		
 		protected function createcoll($coll)
 		{
-			if(!is_dir($GLOBALS["DGSTORAGE"]["Name"]."/".(string)$coll))
+			if(!is_dir($this->DGSTORAGE["Name"]."/".(string)$coll))
 			{
-				mkdir($GLOBALS["DGSTORAGE"]["Name"]."/".(string)$coll);
-				mkdir($GLOBALS["DGSTORAGE"]["Name"]."/".(string)$coll."/index");
-				$dgc=fopen($GLOBALS["DGSTORAGE"]["Name"]."/".(string)$coll."/index/index.dgi","a");
+				mkdir($this->DGSTORAGE["Name"]."/".(string)$coll);
+				chmod($this->DGSTORAGE["Name"]."/".(string)$coll.'/',0777);
+				mkdir($this->DGSTORAGE["Name"]."/".(string)$coll."/index");
+				chmod($this->DGSTORAGE["Name"]."/".(string)$coll."/index/",0777);
+				$dgc=fopen($this->DGSTORAGE["Name"]."/".(string)$coll."/index/index.dgi","a");
 					fclose($dgc);
-				array_push($GLOBALS["DGSTORAGE"]["CollectionCache"],(string)$coll);
-				$index=fopen($GLOBALS["DGSTORAGE"]["Name"]."/index/index.dgi","a");
+				array_push($this->DGSTORAGE["CollectionCache"],(string)$coll);
+				$index=fopen($this->DGSTORAGE["Name"]."/index/index.dgi","a");
 					fwrite($index,(string)$coll."\n");
 					fclose($index);
 				return True;
@@ -334,12 +721,12 @@
 		
 		protected function removecoll($coll)
 		{
-			unlink($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$coll.'/index/index.dgi');
-			rmdir($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$coll.'/index');
-			rmdir($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$coll);
-			unset($GLOBALS["DGSTORAGE"]["CollectionCache"][array_search((string)$coll,$GLOBALS["DGSTORAGE"]["CollectionCache"])]);
+			unlink($this->DGSTORAGE["Name"].'/'.(string)$coll.'/index/index.dgi');
+			rmdir($this->DGSTORAGE["Name"].'/'.(string)$coll.'/index');
+			rmdir($this->DGSTORAGE["Name"].'/'.(string)$coll);
+			unset($this->DGSTORAGE["CollectionCache"][array_search((string)$coll,$this->DGSTORAGE["CollectionCache"])]);
 			$collCache=array();
-			$index=file($GLOBALS["DGSTORAGE"]["Name"].'/index/index.dgi');
+			$index=file($this->DGSTORAGE["Name"].'/index/index.dgi');
 				foreach($index as &$line)
 				{
 					$line=str_replace("\n","",$line);
@@ -348,7 +735,7 @@
 						array_push($collCache,$line);
 					}
 				}
-			$index=fopen($GLOBALS["DGSTORAGE"]["Name"].'/index/index.dgi','w');
+			$index=fopen($this->DGSTORAGE["Name"].'/index/index.dgi','w');
 				if($this->array_count($collCache)!=0)
 				{
 					foreach($collCache as &$collection)
@@ -362,7 +749,7 @@
 		
 		protected function findavailablecoll($createNewColl=False)
 		{
-			$searchRange=$GLOBALS["DGSTORAGE"]["SEARCHRANGE"];
+			$searchRange=$this->DGSTORAGE["SEARCHRANGE"];
 			if ($searchRange!='' || $searchRange!=NULL)
 			{
 				$searchRange=-1-(int)$searchRange;
@@ -371,10 +758,10 @@
 			{
 				$searchRange=0;
 			}
-			$targetCollection=array_slice($GLOBALS["DGSTORAGE"]["CollectionCache"],$searchRange,NULL,False);
+			$targetCollection=array_slice($this->DGSTORAGE["CollectionCache"],$searchRange,NULL,False);
 			foreach($targetCollection as &$collection)
 			{
-				$collIndex=file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/index/index.dgi');
+				$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/index/index.dgi');
 					$i=0;
 					foreach($collIndex as &$line)
 					{
@@ -383,7 +770,7 @@
 							$i++;
 						}
 					}
-					if($i<$GLOBALS["DGSTORAGE"]["SINGLECOLLECTIONLIMIT"])
+					if($i<$this->DGSTORAGE["SINGLECOLLECTIONLIMIT"])
 					{
 						return $collection;
 					}
@@ -394,8 +781,8 @@
 			}
 			if($createNewColl==True)
 			{
-				$this->createcoll(((int)$GLOBALS["DGSTORAGE"]["LastCollection"])+1);
-				return ((int)$GLOBALS["DGSTORAGE"]["LastCollection"])+1;
+				$this->createcoll(((int)$this->DGSTORAGE["LastCollection"])+1);
+				return ((int)$this->DGSTORAGE["LastCollection"])+1;
 			}
 			else
 			{
@@ -429,9 +816,9 @@
 			$res=array();
 			if($key=='$all')
 			{
-				foreach($GLOBALS["DGSTORAGE"]["CollectionCache"] as &$collection)
+				foreach($this->DGSTORAGE["CollectionCache"] as &$collection)
 				{
-					$collIndex=file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/index/index.dgi');
+					$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/index/index.dgi');
 						foreach($collIndex as &$line)
 						{
 							if($s>=$skip)
@@ -442,9 +829,9 @@
 									if($line!='')
 									{
 										$split=explode(",",$line);
-										$storage=fopen($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs');
+										$storage=fopen($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs');
 											$prop=$this->getprop($split[0],$collection);
-											array_push($res,array("uid"=>(string)$split[0],"key"=>(string)$split[1],"content"=>(string)file_get_contents($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs'),"prop"=>$prop));
+											array_push($res,array("uid"=>(string)$split[0],"key"=>(string)$split[1],"content"=>(string)file_get_contents($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs'),"prop"=>$prop));
 											fclose($storage);
 									}
 									$i++;
@@ -455,9 +842,9 @@
 									if(line!='')
 									{
 										$split=explode(",",$line);
-										$storage=fopen($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs');
+										$storage=fopen($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs');
 											$prop=$this->getprop($split[0],$collection);
-											array_push($res,array("uid"=>(string)$split[0],"key"=>(string)$split[1],"content"=>(string)file_get_contents($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs'),"prop"=>$prop));
+											array_push($res,array("uid"=>(string)$split[0],"key"=>(string)$split[1],"content"=>(string)file_get_contents($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs'),"prop"=>$prop));
 											fclose($storage);
 									}
 									$i++;
@@ -476,9 +863,9 @@
 			}
 			else
 			{
-				foreach($GLOBALS["DGSTORAGE"]["CollectionCache"] as &$collection)
+				foreach($this->DGSTORAGE["CollectionCache"] as &$collection)
 				{
-					$collIndex=file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/index/index.dgi');
+					$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/index/index.dgi');
 						foreach($collIndex as &$line)
 						{
 							if($s>=$skip)
@@ -491,9 +878,9 @@
 										$split=explode(",",$line);
 										if($split[1]==$key)
 										{
-											$storage=fopen($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs');
+											$storage=fopen($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs');
 												$prop=$this->getprop($split[0],$collection);
-												array_push($res,array("uid"=>(string)$split[0],"key"=>(string)$split[1],"content"=>(string)file_get_contents($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs'),"prop"=>$prop));
+												array_push($res,array("uid"=>(string)$split[0],"key"=>(string)$split[1],"content"=>(string)file_get_contents($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs'),"prop"=>$prop));
 												fclose($storage);
 										}
 									}
@@ -507,9 +894,9 @@
 										$split=explode(",",$line);
 										if($split[1]==$key)
 										{
-											$storage=fopen($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs');
+											$storage=fopen($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs');
 												$prop=$this->getprop($split[0],$collection);
-												array_push($res,array("uid"=>(string)$split[0],"key"=>(string)$split[1],"content"=>(string)file_get_contents($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs'),"prop"=>$prop));
+												array_push($res,array("uid"=>(string)$split[0],"key"=>(string)$split[1],"content"=>(string)file_get_contents($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs'),"prop"=>$prop));
 												fclose($storage);
 										}
 									}
@@ -529,24 +916,79 @@
 			}
 			return $res;
 		}
-	
+		
+		protected function finditemviauid($uid,$coll=NULL)
+		{
+			$res=array();
+			if($coll==NULL)
+			{
+				foreach($this->DGSTORAGE["CollectionCache"] as &$collection)
+				{
+					$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/index/index.dgi');
+						foreach($collIndex as &$line)
+						{
+							$line=str_replace("\n","",$line);
+							if($line!='')
+							{
+								$split=explode(",",$line);
+								if($split[0]==(string)$uid)
+								{
+									$storage=file_get_contents($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$split[0].'.dgs');
+										$res["uid"]=(string)$split[0];
+										$res["key"]=(string)$split[1];
+										$res["content"]=($storage);
+										$res["prop"]=$this->getprop($split[0],$collection);
+										fclose($storage);
+										return $res;
+								}
+							}
+						}
+				}
+				return $res;
+			}
+			else
+			{
+				$collIndex=file($this->DGSTORAGE["Name"].'/'.(string)$coll.'/index/index.dgi');
+					foreach($collIndex as &$line)
+					{
+						$line=str_replace("\n","",$line);
+						if($line!='')
+						{
+							$split=explode(",",$line);
+							if($split[0]==(string)$uid)
+							{
+								$storage=file_get_contents($this->DGSTORAGE["Name"].'/'.(string)$coll.'/'.(string)$uid.'.dgs');
+									$res["uid"]=(string)$split[0];
+									$res["key"]=(string)$split[1];
+									$res["content"]=($storage);
+									$res["prop"]=$this->getprop($split[0],$coll);
+									fclose($storage);
+									return $res;
+							}
+						}
+					
+					}
+					return $res;
+			}
+		}
+		
 		protected function getprop($uid,$coll=NULL)
 		{
 			$res=array();
 			if($coll==NULL)
 			{
-				foreach($GLOBALS["DGSTORAGE"]["CollectionCache"] as &$collection)
+				foreach($this->DGSTORAGE["CollectionCache"] as &$collection)
 				{
-					if(is_file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp'))
+					if(is_file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp'))
 					{
-						$f=file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp');
+						$f=file($this->DGSTORAGE["Name"].'/'.(string)$collection.'/'.(string)$uid.'.dgp');
 							foreach($f as &$line)
 							{
 								$line=str_replace("\n","",$line);
 								if($line!='')
 								{
 									$split=explode(":",$line);
-									$res[$split[0]]=$split[1];
+									$res[urldecode($split[0])]=urldecode($split[1]);
 								}
 							return $res;
 							}
@@ -559,16 +1001,16 @@
 			}
 			else
 			{
-				if(is_file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$coll.'/'.(string)$uid.'.dgp'))
+				if(is_file($this->DGSTORAGE["Name"].'/'.(string)$coll.'/'.(string)$uid.'.dgp'))
 				{
-					$f=file($GLOBALS["DGSTORAGE"]["Name"].'/'.(string)$coll.'/'.(string)$uid.'.dgp');
+					$f=file($this->DGSTORAGE["Name"].'/'.(string)$coll.'/'.(string)$uid.'.dgp');
 						foreach($f as &$line)
 						{
 							$line=str_replace("\n","",$line);
 							if($line!='')
 							{
 								$split=explode(":",$line);
-								$res[$split[0]]=$split[1];
+								$res[urldecode($split[0])]=urldecode($split[1]);
 							}
 						}
 						return $res;
@@ -581,12 +1023,16 @@
 			}
 		}
 		
+		protected function uptmp()
+		{
+			$timeStamp=fopen($this->DGSTORAGE["Name"].'/cache/time.dgb','w');
+				$sts=$this->uuid();
+				fwrite($timeStamp,$sts);
+				$this->DGSTORAGE["TimeStamp"]=$sts;
+				fclose($timeStamp);
+			return True;
+		}
 	
 	}
-	
-	/*$a=new DGStorage();
-	//$a->create('test');
-	$a->select('ddd');
-	var_dump($a->get(15));
-	*/
+
 ?>
