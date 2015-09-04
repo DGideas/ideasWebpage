@@ -1,3 +1,3 @@
 <?php
-	//此处放一些检测
+	require_once('DGStorage.php');
 ?>
