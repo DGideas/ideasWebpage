@@ -1,3 +1,3 @@
 <?php
-	require_once('DGStorage.php');
+	require('DGStorage.php');
 ?>
